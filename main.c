@@ -24,26 +24,32 @@ int count = 0;
 int bursts_i[MAX_PROCS];
 
 
-short read_file(char*);
+void *read_file(void*);
 void add_burst(int, int);
-void SJF();
+void *SJF(void*);
 
 
 int main() {
-	read_file("jobs");
+	pthread_t reader_id;
+	pthread_create(&reader_id, NULL, read_file, "jobs");
+	pthread_join(reader_id, NULL);
+	//read_file("jobs");
     //for(int i = 0; i < count; i++) printf("%d\n", procs[i].turnaround_time);
     //for(int i = 0; i < count; i++) printf("%d\n", bursts_i[i]);
-    SJF();
+    //SJF();
+    pthread_t SJF_id;
+    pthread_create(&SJF_id, NULL, SJF, NULL);
+    pthread_join(SJF_id, NULL);
     
     return 0;
 }
 
-void SJF(){
+void *SJF(void* _){
 	
 	for(int p=0; p < count; p++){
 		if(procs[p].memory > MAX_MEM){
 			fprintf(stderr, "Not enough memory for running process (%d)", procs[p].id);
-			return;
+			return NULL;
 		}
 	}
 	
@@ -71,27 +77,35 @@ void SJF(){
 	for(; r_i < r; r_i++){
 		PCB proc = procs[ready_q[r_i]];//get process burst time
 		int burst = proc.burst;
-		printf("Running process (%d), time remaining: ", proc.id);
+		
+		printf("Process (%d) started at: %d\n", proc.id, time);
+		printf("Running");
 		while(burst != 0){//run process
-			printf("%d ", burst--);
+			printf(".");
+			burst--;
 			time++;
 		}
-		puts("0\n");
+		puts("\n");
+		printf("Process (%d) done at: %d\n", proc.id, time);
+		
 		proc.turnaround_time = time - 0;//arrive time is always 0
 		proc.wait_time = proc.turnaround_time - proc.burst;
+		
 		printf("Turnaround Time: %d\n", proc.turnaround_time);
 		printf("Waiting Time: %d\n", proc.wait_time);
+		puts("---");
 		
 		mem+= proc.memory;//free memory
 	}
 	if (i!=count) goto long_term;//go back to job queue if not done
+	
+	pthread_exit(0);
 }
 
-short read_file(char* filename) {
-    FILE *file = fopen(filename, "r");
+void *read_file(void* filename) {
+    FILE *file = fopen((char*) filename, "r");
     if (!file) {
         perror("Error opening file");
-        return 0;
     }
 
     int id, burst, priority, memory;
@@ -107,7 +121,7 @@ short read_file(char* filename) {
     }
 
     fclose(file);
-    return 1;
+    pthread_exit(0);
 }
 
 void add_burst(int index, int burst) {
